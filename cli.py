@@ -38,9 +38,9 @@ def cmd_ingest(args) -> int:
         from adapters.goose import DEFAULT_DB, iter_sessions
         pairs = iter_sessions(args.db or DEFAULT_DB)
     elif args.host == "hermes":
-        from adapters.hermes import iter_sessions
+        from adapters.hermes import DEFAULT_DB as HERMES_DB, iter_sessions
         pricing = PricingCatalog.load(args.pricing) if getattr(args, "pricing", None) else None
-        pairs = iter_sessions(args.source, pricing=pricing)
+        pairs = iter_sessions(args.db or HERMES_DB, pricing=pricing)
     else:
         print(f"unknown host: {args.host}", file=sys.stderr)
         return 2
@@ -87,9 +87,8 @@ def main(argv=None) -> int:
     ing = sub.add_parser("ingest", help="pull a host's usage into the ledger")
     ing.add_argument("--host", required=True, choices=["goose", "hermes"])
     ing.add_argument("--ledger", required=True)
-    ing.add_argument("--db", help="goose sessions.db (default ~/.local/share/goose/sessions/sessions.db)")
-    ing.add_argument("--source", help="hermes usage-snapshot dir (default ~/.hermes/sessions/usage)")
-    ing.add_argument("--pricing", help="pricing.json — estimate cost for token-only hosts (hermes)")
+    ing.add_argument("--db", help="session store: goose sessions.db or hermes ~/.hermes/state.db")
+    ing.add_argument("--pricing", help="pricing.json — cost fallback when a host omits cost (hermes)")
     ing.set_defaults(fn=cmd_ingest)
 
     for name, fn in (("report", cmd_report), ("finops", cmd_finops)):
