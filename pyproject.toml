@@ -1,0 +1,13 @@
+[project]
+name = "tokenomics"
+version = "0.1.0"
+description = "Unified LLM-spend ingestion engine + FinOps — one ledger across OpenClaw, Zoder, Hermes, Goose."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+tokenomics = "cli:main"
+
+[tool.setuptools]
+packages = ["tokenomics_core", "adapters"]
+py-modules = ["cli"]
