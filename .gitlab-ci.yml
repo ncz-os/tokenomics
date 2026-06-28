@@ -15,7 +15,7 @@ syntax+imports:
   stage: check
   script:
     - python -m compileall tokenomics_core adapters cli.py
-    - python -c "import sys; sys.path.insert(0,'.'); import tokenomics_core, adapters.goose, cli; print('import smoke OK')"
+    - python -c "import sys; sys.path.insert(0,'.'); import tokenomics_core, adapters.goose, adapters.hermes, cli; print('import smoke OK')"
 
 lint:
   stage: check
