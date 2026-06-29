@@ -1,17 +1,42 @@
 [project]
-name = "tokenomics"
+name = "ncz-tokenomics"
 version = "0.1.0"
 description = "Unified LLM-spend ingestion engine + FinOps — one ledger across OpenClaw, Zoder, Hermes, Goose."
+readme = "README.md"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Jason Perlow", email = "jperlow@gmail.com" }]
+keywords = ["llm", "finops", "tokenomics", "cost", "observability", "hermes", "goose", "openclaw"]
 dependencies = []
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: System :: Monitoring",
+]
+
+[project.urls]
+Homepage = "https://gitlab.com/ncz-os/tokenomics"
+Repository = "https://gitlab.com/ncz-os/tokenomics"
+Issues = "https://gitlab.com/ncz-os/tokenomics/-/issues"
 
 [project.scripts]
 tokenomics = "tokenomics_cli:main"
 
-# Hermes (NousResearch/hermes-agent) plugin discovery. `pip install tokenomics`
+# Hermes (NousResearch/hermes-agent) plugin discovery. `pip install ncz-tokenomics`
 # makes `hermes tokenomics` available; Hermes scans this entry-point group.
 [project.entry-points."hermes_agent.plugins"]
 tokenomics = "hermes_plugin"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["tokenomics_core", "tokenomics_core.adapters"]
