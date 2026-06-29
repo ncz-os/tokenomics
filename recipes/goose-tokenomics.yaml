@@ -1,0 +1,43 @@
+version: 1.0.0
+title: Goose LLM spend report (tokenomics)
+author:
+  contact: Jason Perlow
+description: Report this Goose installation's LLM token spend + FinOps via the ncz-tokenomics CLI, which reads Goose's own session store read-only.
+
+activities:
+  - Ingest Goose's session store into a tokenomics ledger
+  - Print a spend report for a chosen window
+  - Show the FinOps view (allocation / realized $-per-Mtok / advisor / forecast)
+
+parameters:
+  - key: days
+    input_type: number
+    requirement: optional
+    default: 30
+    description: Reporting window in days.
+
+extensions:
+  - type: builtin
+    name: developer
+    display_name: Developer
+    timeout: 300
+
+instructions: |
+  Report the user's Goose LLM spend using the `tokenomics` CLI from the
+  `ncz-tokenomics` PyPI package. It reads Goose's own session store
+  (~/.local/share/goose/sessions/sessions.db) read-only; cost is host-authoritative.
+
+  Steps (run via the developer shell tool):
+  1. If `tokenomics` is not found, install it: `pipx install ncz-tokenomics`
+     (or `pip install --user ncz-tokenomics`).
+  2. Ingest Goose's sessions into a ledger (idempotent — dedupes already-seen sessions):
+     `tokenomics ingest --host goose --ledger ~/.local/share/goose/tokenomics-ledger.jsonl`
+  3. Print the report for the requested window:
+     `tokenomics report --ledger ~/.local/share/goose/tokenomics-ledger.jsonl --days {{ days }}`
+  4. If the user asks for allocation / realized-rate / advisor / forecast:
+     `tokenomics finops --ledger ~/.local/share/goose/tokenomics-ledger.jsonl --days {{ days }}`
+
+  Present the report output, then summarize the top spend by model and provider.
+
+prompt: |
+  Report my Goose LLM spend for the last {{ days }} days using tokenomics.

@@ -1,0 +1,5 @@
+name: tokenomics
+version: "0.1.0"
+description: "LLM-spend report + FinOps from Hermes's own session store (~/.hermes/state.db), via the shared host-neutral tokenomics core. Read-only; no Hermes core changes. Adds the `hermes tokenomics` command."
+author: "Jason Perlow"
+kind: standalone

@@ -1,0 +1,1 @@
+"""tokenomics host ingestion adapters."""
