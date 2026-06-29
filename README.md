@@ -1,6 +1,6 @@
 # tokenomics
 
-**Unified LLM-spend ingestion engine + FinOps — one canonical ledger across OpenClaw, Zoder, Hermes, and Goose.**
+**Unified LLM-spend ingestion engine + FinOps — one canonical ledger across Zoder, OpenClaw, Goose, and Hermes.**
 
 ![tokenomics spend report — $337,420 paid + free, by model, $1,851,423 avoided](docs/img/tokenomics-spend.png)
 
@@ -34,15 +34,15 @@ Cost precedence is host-neutral: **host-reported cost → pricing-catalog estima
 
 | host | usage surface | cost | implementation · status |
 |------|---------------|------|--------------------------|
-| [**Hermes**](https://github.com/NousResearch/hermes-agent) (Nous Research) | reads `~/.hermes/state.db` | host (`actual_cost_usd`) → estimate → catalog | this package — Python adapter + `hermes tokenomics` plugin · **shipped** |
-| [**Goose**](https://goose-docs.ai/) (Agentic AI Foundation / Linux Foundation) | reads `~/.local/share/goose/sessions/sessions.db` | host (`accumulated_cost`) | this package — Python adapter + recipe · **shipped** |
+| [**Zoder**](https://gitlab.com/ncz-os/zoder) (ZeroClaw fork) | in-process cost-tracker + offline pricing, inline | host cost else catalog | Rust, inline at the source · **shipped (v0.2.0)** |
 | [**OpenClaw**](https://github.com/openclaw/openclaw) | `model.usage` event bus (`costUsd`), inline | host cost | native TypeScript extension · **PR #97149 (open)** |
-| [**ZeroClaw**](https://github.com/zeroclaw-labs/zeroclaw) | in-process cost-tracker + offline pricing | host cost else catalog | Rust, via the [**Zoder**](https://gitlab.com/ncz-os/zoder) fork · in fork |
+| [**Goose**](https://goose-docs.ai/) (Agentic AI Foundation / Linux Foundation) | reads `~/.local/share/goose/sessions/sessions.db` | host (`accumulated_cost`) | this package — Python adapter + recipe · **shipped** |
+| [**Hermes**](https://github.com/NousResearch/hermes-agent) (Nous Research) | reads `~/.hermes/state.db` | host (`actual_cost_usd`) → estimate → catalog | this package — Python adapter + `hermes tokenomics` plugin · **shipped** |
 
-Hermes and Goose are *pulled* read-only from their existing stores by this Python
-package (no host modification). OpenClaw and ZeroClaw emit the same canonical
-ledger rows *inline at the source* via sibling implementations in their own
-languages/repos (see [OpenClaw](#openclaw) and [ZeroClaw (via Zoder)](#zeroclaw-via-zoder)).
+Zoder and OpenClaw emit the same canonical ledger rows *inline at the source* via
+sibling implementations in their own languages/repos (see [Zoder](#zoder-zeroclaw)
+and [OpenClaw](#openclaw)). Goose and Hermes are *pulled* read-only from their
+existing stores by this Python package (no host modification).
 
 ## Install
 
@@ -57,6 +57,70 @@ tokenomics ingest --host goose  --ledger ledger.jsonl
 tokenomics ingest --host hermes --ledger ledger.jsonl --pricing pricing.json
 tokenomics report --ledger ledger.jsonl --days 30
 tokenomics finops --ledger ledger.jsonl --days 30
+```
+
+## Zoder (ZeroClaw)
+
+ZeroClaw's cost accounting is delivered through **[Zoder](https://gitlab.com/ncz-os/zoder)**.
+
+**What Zoder is:** the full-stack developer's AI pair-coding and headless
+coding-dispatch system — **free-first, cost-governed, MNEMOS-first**. It's to
+[ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) what Ubuntu is to Debian: a
+curated, opinionated distribution on the same engine, tuned for two jobs —
+(1) interactive pair-coding at the terminal (the `zerocode` TUI), and (2) headless
+automated coding dispatch (a *hive* of worker agents that pick up coding tasks, run
+them on the cheapest capable model, review, fix, and report cost — no human in the
+loop). It **routes to free / open-weight models first**, refuses to silently fall
+back to a paid backend, and is vendor-neutral against any OpenAI-compatible / LiteLLM
+endpoint.
+
+Because cost-governance is core to Zoder, the tokenomics integration ships **inside
+Zoder** as Rust — an offline pricing catalog plus a cost-tracker hook in the
+runtime, vendored on the `zoder-integration` branch of the ZeroClaw fork —
+emitting the same canonical ledger rows inline at the source (cost is the
+host-reported value, else the offline catalog).
+
+- **Zoder:** https://gitlab.com/ncz-os/zoder · mirror https://github.com/ncz-os/zoder · [releases](https://gitlab.com/ncz-os/zoder/-/releases)
+- **ZeroClaw fork (patch stack):** https://gitlab.com/ncz-os/zeroclaw (`zoder-integration`)
+
+## OpenClaw
+
+[OpenClaw](https://github.com/openclaw/openclaw) is supported by a **native
+TypeScript extension** (`extensions/tokenomics`) inside OpenClaw — not a Python
+adapter in this repo. It subscribes to OpenClaw's
+internal `model.usage` event bus and persists each invocation's `costUsd` into the
+same canonical ledger, then serves a spend report and a FinOps view (`?view=finops`).
+
+By design it does **not** duplicate OpenClaw's pricing catalog — it consumes the
+`costUsd` OpenClaw already emits, which keeps it lightweight and provider-agnostic.
+
+Status: PR open — https://github.com/openclaw/openclaw/pull/97149 (needs a
+maintainer override since it introduces dependencies).
+
+## Goose
+
+[Goose](https://goose-docs.ai/) (the [Agentic AI Foundation](https://github.com/aaif-goose/goose)
+agent, under the Linux Foundation) has no operator plugin command, but it persists
+per-session usage **and cost** to its own SQLite store, so the CLI reports Goose
+spend directly:
+
+```bash
+pip install ncz-tokenomics
+tokenomics ingest --host goose --ledger ~/.local/share/goose/tokenomics-ledger.jsonl
+tokenomics report --ledger ~/.local/share/goose/tokenomics-ledger.jsonl --days 30
+tokenomics finops --ledger ~/.local/share/goose/tokenomics-ledger.jsonl --days 30
+```
+
+Cost is host-authoritative (Goose's `accumulated_cost`); ingest is idempotent
+(dedupes already-seen sessions), so it's safe to re-run.
+
+### Recipe (agent-driven)
+
+`recipes/goose-tokenomics.yaml` packages the above as a Goose recipe — the agent
+installs the CLI if needed, ingests, and presents the report:
+
+```bash
+goose run --recipe recipes/goose-tokenomics.yaml --params days=30
 ```
 
 ## Hermes plugin
@@ -92,70 +156,6 @@ hermes tokenomics --ingest-only
 ```
 
 (Alternatively, enable via `~/.hermes/config.yaml`: `plugins: {enabled: [tokenomics]}`.)
-
-## Goose
-
-[Goose](https://goose-docs.ai/) (the [Agentic AI Foundation](https://github.com/aaif-goose/goose)
-agent, under the Linux Foundation) has no operator plugin command, but it persists
-per-session usage **and cost** to its own SQLite store, so the CLI reports Goose
-spend directly:
-
-```bash
-pip install ncz-tokenomics
-tokenomics ingest --host goose --ledger ~/.local/share/goose/tokenomics-ledger.jsonl
-tokenomics report --ledger ~/.local/share/goose/tokenomics-ledger.jsonl --days 30
-tokenomics finops --ledger ~/.local/share/goose/tokenomics-ledger.jsonl --days 30
-```
-
-Cost is host-authoritative (Goose's `accumulated_cost`); ingest is idempotent
-(dedupes already-seen sessions), so it's safe to re-run.
-
-### Recipe (agent-driven)
-
-`recipes/goose-tokenomics.yaml` packages the above as a Goose recipe — the agent
-installs the CLI if needed, ingests, and presents the report:
-
-```bash
-goose run --recipe recipes/goose-tokenomics.yaml --params days=30
-```
-
-## OpenClaw
-
-[OpenClaw](https://github.com/openclaw/openclaw) is supported by a **native
-TypeScript extension** (`extensions/tokenomics`) inside OpenClaw — not a Python
-adapter in this repo. It subscribes to OpenClaw's
-internal `model.usage` event bus and persists each invocation's `costUsd` into the
-same canonical ledger, then serves a spend report and a FinOps view (`?view=finops`).
-
-By design it does **not** duplicate OpenClaw's pricing catalog — it consumes the
-`costUsd` OpenClaw already emits, which keeps it lightweight and provider-agnostic.
-
-Status: PR open — https://github.com/openclaw/openclaw/pull/97149 (needs a
-maintainer override since it introduces dependencies).
-
-## ZeroClaw (via Zoder)
-
-ZeroClaw's cost accounting is delivered through **[Zoder](https://gitlab.com/ncz-os/zoder)**.
-
-**What Zoder is:** the full-stack developer's AI pair-coding and headless
-coding-dispatch system — **free-first, cost-governed, MNEMOS-first**. It's to
-[ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) what Ubuntu is to Debian: a
-curated, opinionated distribution on the same engine, tuned for two jobs —
-(1) interactive pair-coding at the terminal (the `zerocode` TUI), and (2) headless
-automated coding dispatch (a *hive* of worker agents that pick up coding tasks, run
-them on the cheapest capable model, review, fix, and report cost — no human in the
-loop). It **routes to free / open-weight models first**, refuses to silently fall
-back to a paid backend, and is vendor-neutral against any OpenAI-compatible / LiteLLM
-endpoint.
-
-Because cost-governance is core to Zoder, the tokenomics integration ships **inside
-Zoder** as Rust — `crates/zeroclaw-pricing` (an offline pricing catalog) plus a
-cost-tracker hook in the runtime, vendored on the `zoder-integration` branch of the
-ZeroClaw fork — emitting the same canonical ledger rows inline at the source (cost
-is the host-reported value, else the offline catalog).
-
-- **Zoder:** https://gitlab.com/ncz-os/zoder · mirror https://github.com/ncz-os/zoder · [v0.1.0 release](https://gitlab.com/ncz-os/zoder/-/releases/v0.1.0)
-- **ZeroClaw fork (patch stack):** https://gitlab.com/ncz-os/zeroclaw (`zoder-integration`)
 
 ## License
 
