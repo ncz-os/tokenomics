@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-tokenomics = "cli:main"
+tokenomics = "tokenomics_cli:main"
 
 # Hermes (NousResearch/hermes-agent) plugin discovery. `pip install tokenomics`
 # makes `hermes tokenomics` available; Hermes scans this entry-point group.
@@ -14,5 +14,5 @@ tokenomics = "cli:main"
 tokenomics = "hermes_plugin"
 
 [tool.setuptools]
-packages = ["tokenomics_core", "adapters"]
-py-modules = ["cli", "hermes_plugin"]
+packages = ["tokenomics_core", "tokenomics_core.adapters"]
+py-modules = ["tokenomics_cli", "hermes_plugin"]

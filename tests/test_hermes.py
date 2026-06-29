@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from adapters.hermes import iter_sessions, usage_to_entry  # noqa: E402
+from tokenomics_core.adapters.hermes import iter_sessions, usage_to_entry  # noqa: E402
 from tokenomics_core.pricing import ModelPrice, PricingCatalog  # noqa: E402
 
 _SCHEMA = """

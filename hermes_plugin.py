@@ -25,7 +25,6 @@ The command:
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 DEFAULT_DB = Path.home() / ".hermes" / "state.db"
 DEFAULT_LEDGER = Path.home() / ".hermes" / "tokenomics-ledger.jsonl"
@@ -48,18 +47,26 @@ def _setup(subparser) -> None:
 
 
 def _handle(args) -> int:
-    """Dispatch ``hermes tokenomics`` — sync the store, then report/finops."""
-    import cli  # shared CLI command implementations (this package)
+    """Dispatch ``hermes tokenomics`` — sync the store, then report/finops.
+
+    Imports only ``tokenomics_core`` (a unique namespace) — never a generic
+    top-level module like ``cli``, which Hermes's own tree would shadow at runtime.
+    """
+    import json
+
+    from tokenomics_core import commands
 
     # 1. Pull Hermes's state.db into the canonical ledger (dedup per session).
-    cli.cmd_ingest(SimpleNamespace(
-        host="hermes", ledger=args.ledger, db=args.db, pricing=args.pricing))
+    commands.ingest("hermes", args.ledger, db=args.db, pricing_path=args.pricing)
     if getattr(args, "ingest_only", False):
         return 0
 
     # 2. Report (or the FinOps view) over the ledger.
-    view = SimpleNamespace(ledger=args.ledger, pricing=args.pricing, days=args.days)
-    return cli.cmd_finops(view) if getattr(args, "finops", False) else cli.cmd_report(view)
+    if getattr(args, "finops", False):
+        print(json.dumps(commands.finops(args.ledger, args.pricing, args.days), indent=2, default=str))
+    else:
+        print(commands.report(args.ledger, args.pricing, args.days))
+    return 0
 
 
 def register(ctx) -> None:
