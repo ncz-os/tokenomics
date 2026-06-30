@@ -35,7 +35,7 @@ Cost precedence is host-neutral: **host-reported cost → pricing-catalog estima
 | host | usage surface | cost | implementation · status |
 |------|---------------|------|--------------------------|
 | [**Zoder**](https://gitlab.com/ncz-os/zoder) (ZeroClaw fork) | in-process cost-tracker + offline pricing, inline | host cost else catalog | Rust, inline at the source · **shipped (v0.2.0)** |
-| [**OpenClaw**](https://github.com/openclaw/openclaw) | `model.usage` event bus (`costUsd`), inline | host cost | native TypeScript extension · **PR #97149 (open)** |
+| [**OpenClaw**](https://github.com/openclaw/openclaw) | `model.usage` event bus (`costUsd`), inline | host cost | clawhub plugin · **[published](https://clawhub.ai/perlowja/plugins/tokenomics)** |
 | [**Goose**](https://goose-docs.ai/) (Agentic AI Foundation / Linux Foundation) | reads `~/.local/share/goose/sessions/sessions.db` | host (`accumulated_cost`) | this package — Python adapter + recipe · **shipped** |
 | [**Hermes**](https://github.com/NousResearch/hermes-agent) (Nous Research) | reads `~/.hermes/state.db` | host (`actual_cost_usd`) → estimate → catalog | this package — Python adapter + `hermes tokenomics` plugin · **shipped** |
 
@@ -85,17 +85,17 @@ host-reported value, else the offline catalog).
 
 ## OpenClaw
 
-[OpenClaw](https://github.com/openclaw/openclaw) is supported by a **native
-TypeScript extension** (`extensions/tokenomics`) inside OpenClaw — not a Python
-adapter in this repo. It subscribes to OpenClaw's
+[OpenClaw](https://github.com/openclaw/openclaw) is supported by a **ClawHub plugin** —
+[clawhub.ai/perlowja/plugins/tokenomics](https://clawhub.ai/perlowja/plugins/tokenomics) —
+a TypeScript extension installed through ClawHub rather than a Python adapter in this
+repo. It subscribes to OpenClaw's
 internal `model.usage` event bus and persists each invocation's `costUsd` into the
 same canonical ledger, then serves a spend report and a FinOps view (`?view=finops`).
 
 By design it does **not** duplicate OpenClaw's pricing catalog — it consumes the
 `costUsd` OpenClaw already emits, which keeps it lightweight and provider-agnostic.
 
-Status: PR open — https://github.com/openclaw/openclaw/pull/97149 (needs a
-maintainer override since it introduces dependencies).
+Status: **published as a ClawHub plugin** — https://clawhub.ai/perlowja/plugins/tokenomics
 
 ## Goose
 
