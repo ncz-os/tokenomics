@@ -1,5 +1,7 @@
 # tokenomics
 
+<p align="center"><img src="docs/img/tokenomics-logo.png" alt="Tokenomics — track spend · drive insight · save more" width="400"></p>
+
 **Unified LLM-spend ingestion engine + FinOps — one canonical ledger across Zoder, OpenClaw, Goose, and Hermes.**
 
 ![tokenomics spend report — $337,420 paid + free, by model, $1,851,423 avoided](docs/img/tokenomics-spend.png)
