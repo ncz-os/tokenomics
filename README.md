@@ -40,11 +40,13 @@ Cost precedence is host-neutral: **host-reported cost → pricing-catalog estima
 | [**OpenClaw**](https://github.com/openclaw/openclaw) | `model.usage` event bus (`costUsd`), inline | host cost | clawhub plugin · **[published](https://clawhub.ai/perlowja/plugins/tokenomics)** |
 | [**Goose**](https://goose-docs.ai/) (Agentic AI Foundation / Linux Foundation) | reads `~/.local/share/goose/sessions/sessions.db` | host (`accumulated_cost`) | this package — Python adapter + recipe · **shipped** |
 | [**Hermes**](https://github.com/NousResearch/hermes-agent) (Nous Research) | reads `~/.hermes/state.db` | host (`actual_cost_usd`) → estimate → catalog | this package — Python adapter + `hermes tokenomics` plugin · **shipped** |
+| **osrun** (budget-capped agent runner) | reads the runner's JSONL pass ledger | host (`usd`) | this package — Python adapter (`--host osrun`) · **new** |
+| **freebuff** (coding-agent TUI) | reads the local prompt inbox `done/*.json` | dollar-equivalent of hours × rate (see [caveat](#freebuff)) | this package — Python adapter (`--host freebuff`) · **new, record shape is a draft** |
 
 Zoder and OpenClaw emit the same canonical ledger rows *inline at the source* via
 sibling implementations in their own languages/repos (see [Zoder](#zoder-zeroclaw)
-and [OpenClaw](#openclaw)). Goose and Hermes are *pulled* read-only from their
-existing stores by this Python package (no host modification).
+and [OpenClaw](#openclaw)). Goose, Hermes, osrun and freebuff are *pulled* read-only from their
+existing stores/files by this Python package (no host modification).
 
 ## Install
 
@@ -57,6 +59,8 @@ pip install ncz-tokenomics
 ```bash
 tokenomics ingest --host goose  --ledger ledger.jsonl
 tokenomics ingest --host hermes --ledger ledger.jsonl --pricing pricing.json
+tokenomics ingest --host osrun    --ledger ledger.jsonl --db runner-ledger.jsonl [--since 2026-10-01]
+tokenomics ingest --host freebuff --ledger ledger.jsonl --db <inbox-dir>        [--since 2026-10-01]
 tokenomics report --ledger ledger.jsonl --days 30
 tokenomics finops --ledger ledger.jsonl --days 30
 ```
@@ -124,6 +128,60 @@ installs the CLI if needed, ingests, and presents the report:
 ```bash
 goose run --recipe recipes/goose-tokenomics.yaml --params days=30
 ```
+
+## osrun
+
+Ingests the JSONL ledger written by a budget-capped agent runner. Each line is a
+**pass record** (`task`, `pass`, `model`, `usd`, `tokens{input,output,reasoning,cache{write,read}}`, `ts`)
+or a **summary record** (`{"task": ..., "summary": {...}}`). Per-pass records are the
+spend; summaries and any line without `usd` are skipped and counted, so nothing is
+counted twice. Malformed lines are skipped, a truncated last line is left for the next
+run, unknown keys and a missing `cache` block are tolerated.
+
+Mapping: `provider` = `anthropic` for models starting `claude`, else `unknown`;
+**`tokens_in` = `input` + `cache.write` + `cache.read`** (all prompt-side tokens, so
+`tokens_in + tokens_out` = `tokens.total`); `tokens_out` = `output` + `reasoning`;
+`cost_usd` = `usd` (host-authoritative, no catalog estimate); `ts_utc` = `ts` as RFC3339 UTC.
+
+```bash
+export TOKENOMICS_OSRUN_LEDGER=/path/to/runner-ledger.jsonl   # or pass --db
+tokenomics ingest --host osrun --ledger ledger.jsonl
+```
+
+There is no default path. Ingest is idempotent: a high-water mark (byte offset + digest of
+the last consumed line) is kept in `<ledger>.osrun.state.json`, written atomically. The
+ledger append and the state write are ordered by an intent record, so a crash between
+them neither loses nor duplicates rows. One writer per ledger is assumed.
+
+## freebuff
+
+Ingests the record files of a coding-agent TUI's local prompt inbox
+(`<inbox>/done/<name>.json`). Only `id` and `completedAt` are required; every other
+field is optional and unknown keys are ignored (**the record shape is a draft and may
+change**). Freebuff is metered in **hours × a multiplier, not tokens**, so rows have
+`provider=freebuff`, `tokens_in = tokens_out = 0`, `calls = 1` and a *dollar-equivalent*
+`cost_usd = hours_charged × rate`:
+
+- `hours_charged`: `balanceBefore.spendableHours − balanceAfter.spendableHours` when both
+  are present and before ≥ after; else `sessionMultiplier × 1h` when `newSession` is true;
+  else 0. `session_ended` rows with no charge are skipped.
+- `rate`: pool rate `monthly_fee_usd / (pool_hours_per_day × days_per_month)` — defaults
+  `8 / (50 × 30)` = **$0.005333/h** — or `wallet_usd_per_hour` (default **$0.05**) when
+  the record has `paidFrom == "wallet"`.
+
+```bash
+export TOKENOMICS_FREEBUFF_INBOX=/path/to/inbox                 # or pass --db
+# optional overrides (defaults shown):
+export TOKENOMICS_FREEBUFF_MONTHLY_FEE_USD=8 TOKENOMICS_FREEBUFF_POOL_HOURS_PER_DAY=50
+export TOKENOMICS_FREEBUFF_WALLET_USD_PER_HOUR=0.05 TOKENOMICS_FREEBUFF_DAYS_PER_MONTH=30
+tokenomics ingest --host freebuff --ledger ledger.jsonl
+```
+
+> **Dollar-equivalent caveat.** The pool rate *allocates a flat fee* over the daily pool
+> hours; it is not a price anyone was billed per hour. Unused daily hours raise the real
+> cost per hour consumed, so these figures are for comparison and forecasting only, not
+> invoiced spend. Idempotent by `id`+`attempt` via `<ledger>.freebuff.state.json` (atomic,
+> same crash-safe ordering as osrun).
 
 ## Hermes plugin
 
