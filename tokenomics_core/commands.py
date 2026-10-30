@@ -26,8 +26,28 @@ def _load_seen(p: Path) -> set:
     return set(json.loads(p.read_text())) if p.exists() else set()
 
 
-def ingest(host: str, ledger: str, db=None, source=None, pricing_path=None) -> int:
-    """Pull a host's usage into the ledger (dedup per session). Returns new-row count."""
+def _ingest_file_host(host: str, ledger: str, source, since) -> int:
+    """osrun/freebuff: high-water-mark ingest with its own atomic sidecar state."""
+    try:
+        if host == "osrun":
+            from .adapters import osrun
+            res = osrun.ingest(osrun.resolve_source(source), ledger, since=since)
+        else:
+            from .adapters import freebuff
+            res = freebuff.ingest(freebuff.resolve_source(source), ledger, since=since)
+    except FileNotFoundError as e:
+        raise ValueError(str(e)) from e
+    return res.appended + res.recovered
+
+
+def ingest(host: str, ledger: str, db=None, source=None, pricing_path=None, since=None) -> int:
+    """Pull a host's usage into the ledger (dedup per session). Returns new-row count.
+
+    ``osrun`` / ``freebuff`` read ``source`` (or ``db``), falling back to
+    ``$TOKENOMICS_OSRUN_LEDGER`` / ``$TOKENOMICS_FREEBUFF_INBOX``.
+    """
+    if host in ("osrun", "freebuff"):
+        return _ingest_file_host(host, ledger, source or db, since)
     led = Ledger(ledger)
     cpath = _cursor(ledger, host)
     seen = _load_seen(cpath)

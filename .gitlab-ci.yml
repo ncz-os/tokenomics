@@ -15,7 +15,7 @@ syntax+imports:
   stage: check
   script:
     - python -m compileall tokenomics_core tokenomics_cli.py hermes_plugin.py
-    - python -c "import sys; sys.path.insert(0,'.'); import tokenomics_core, tokenomics_core.adapters.goose, tokenomics_core.adapters.hermes, tokenomics_cli, hermes_plugin; print('import smoke OK')"
+    - python -c "import sys; sys.path.insert(0,'.'); import tokenomics_core, tokenomics_core.adapters.goose, tokenomics_core.adapters.hermes, tokenomics_core.adapters.osrun, tokenomics_core.adapters.freebuff, tokenomics_cli, hermes_plugin; print('import smoke OK')"
 
 lint:
   stage: check

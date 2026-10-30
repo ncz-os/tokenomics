@@ -2,7 +2,7 @@
 
 Thin wrapper over ``tokenomics_core.commands`` (the shared implementation also
 used by the Hermes plugin).
-  tokenomics ingest --host goose|hermes --ledger <path> [--db <path>] [--pricing <p>]
+  tokenomics ingest --host goose|hermes|osrun|freebuff --ledger <path> [--db <path>] [--pricing <p>] [--since <iso>]
   tokenomics report  --ledger <path> [--pricing pricing.json] [--days 30]
   tokenomics finops  --ledger <path> [--pricing pricing.json] [--days 30]
 """
@@ -18,7 +18,8 @@ from tokenomics_core import commands
 def cmd_ingest(args) -> int:
     try:
         n = commands.ingest(args.host, args.ledger, db=getattr(args, "db", None),
-                            pricing_path=getattr(args, "pricing", None))
+                            pricing_path=getattr(args, "pricing", None),
+                            since=getattr(args, "since", None))
     except ValueError as e:
         print(str(e), file=sys.stderr)
         return 2
@@ -42,10 +43,12 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     ing = sub.add_parser("ingest", help="pull a host's usage into the ledger")
-    ing.add_argument("--host", required=True, choices=["goose", "hermes"])
+    ing.add_argument("--host", required=True, choices=["goose", "hermes", "osrun", "freebuff"])
     ing.add_argument("--ledger", required=True)
-    ing.add_argument("--db", help="session store: goose sessions.db or hermes ~/.hermes/state.db")
+    ing.add_argument("--db", help="source: goose sessions.db, hermes ~/.hermes/state.db, osrun JSONL ledger "
+                     "(else $TOKENOMICS_OSRUN_LEDGER) or freebuff inbox dir (else $TOKENOMICS_FREEBUFF_INBOX)")
     ing.add_argument("--pricing", help="pricing.json — cost fallback when a host omits cost (hermes)")
+    ing.add_argument("--since", help="osrun/freebuff: ignore records older than this ISO-8601 time")
     ing.set_defaults(fn=cmd_ingest)
 
     for name, fn in (("report", cmd_report), ("finops", cmd_finops)):
